@@ -92,6 +92,37 @@ describe('discoverSkills — bounded depth-2 inside skill container dirs', () =>
     expect(skills.map((s) => s.name)).toEqual(['agent-skill']);
   });
 
+  it('ignores project-installed agent skills tracked by skills-lock.json', async () => {
+    writeSkill(join(testDir, '.agents', 'skills', 'installed-skill'), 'installed-skill');
+    writeSkill(join(testDir, 'skills', 'source-skill'), 'source-skill');
+    writeFileSync(
+      join(testDir, 'skills-lock.json'),
+      JSON.stringify({
+        version: 1,
+        skills: {
+          'installed-skill': {
+            source: 'owner/repo',
+            sourceType: 'github',
+            skillPath: 'skills/installed-skill/SKILL.md',
+            computedHash: 'hash',
+          },
+        },
+      })
+    );
+
+    const skills = await discoverSkills(testDir);
+
+    expect(skills.map((s) => s.name)).toEqual(['source-skill']);
+  });
+
+  it('does not ignore agent-dir skills without a skills-lock.json entry', async () => {
+    writeSkill(join(testDir, '.agents', 'skills', 'agent-skill'), 'agent-skill');
+
+    const skills = await discoverSkills(testDir);
+
+    expect(skills.map((s) => s.name)).toEqual(['agent-skill']);
+  });
+
   it('does not perform depth-2 descent from the repo root', async () => {
     // `examples/<x>/<skill>/SKILL.md` must stay invisible without --full-depth.
     writeSkill(join(testDir, 'examples', 'category', 'example-skill'), 'example-skill');
